@@ -4,8 +4,7 @@ output: html_document
 ---
 
 ## Names and EIDs of Group Members
-
-
+## Gian Avalos (gfa298), Jay Ayson (), Rushil Randhar ()
 
 ## Load the Data
 
@@ -46,11 +45,28 @@ How many active (3x3x3) speedcubers are there registered with the WCA? For this 
 
 
 ```{r}
-## Add your code here
+
+# Load data relevant to question
+competitions <- read_tsv("WCA_export_Competitions.tsv.bz2")
+results <- read_tsv("WCA_export_Results_333.tsv.bz2")
+
+# Filter competition years to 2022-2024
+competitions_2022_2024 <- competitions |>
+  filter(year >= 2022 & year <= 2024)
+
+# Join result table with filtered competitions and count speed cubers
+active_speed_cubers <- results |>
+  inner_join(competitions_2022_2024, by= c("competitionId" = "id")) |>
+  group_by(personId) |>
+  summarize(num_comps = n_distinct(competitionId)) |>
+  filter(num_comps >= 2)
+  nrow(active_speed_cubers)
+  
+active_speed_cubers
 
 ```
 
-**Write your answer here.**
+**Based on the provided criteria, there are 39,482 active speed cubers with who have competed in at least two competitions since the years 2022-2024.**
 
 ### World Records
 
@@ -59,11 +75,20 @@ This question has two parts:
 1. Who holds the current world record single? 
 
 ```{r}
-## Add your code here
+# Save data needed to a variable
+persons <- read_tsv("WCA_export_Persons.tsv.bz2")
 
+# Join necessary tables by id and store the world record single holder
+top_ranked <- rankssingle |>
+  inner_join(persons, by = c("personId" = "id")) |>
+  filter(worldRank == 1) |>
+  select(personId, name, best, worldRank)
+
+top_ranked
+  
 ```
 
-**Write your answer here.**
+**The current world record single holder is Max Park.**
 
 
 On what date was this record set?
@@ -71,22 +96,49 @@ On what date was this record set?
 NOTE: Use the start date of the competition in which the record was set.
 
 ```{r}
-## Add your code here
+
+# Join the result and competitions tables, filter by best score and return that competition's date
+best_date <- results |>
+  inner_join(competitions, by = c("competitionId" = "id")) |>
+  filter(best == 313) |>
+  select(year, month, day) |>
+  mutate(date = paste(month, day, year, sep = "/"))
+
+best_date
 
 ```
 
-**Write your answer here.**
+**The record was broken on June 11th of 2023.**
 
 
 
 2. Who *previously* held the world record single? On what date was this previous record set?
 
 ```{r}
-## Add your code here
+# Join necessary tables by id and store the second best record holder. Slices alphabetically to return the actual previous record holder
+second_ranked <- rankssingle |>
+  inner_join(persons, by = c("personId" = "id")) |>
+  filter(worldRank == 3) |>
+  select(personId, name, best, worldRank) |>
+  arrange(personId) |>
+  slice(1)
+
+# Find the previous record holder and filter out the earlier holder
+second_best_date <- results |>
+  inner_join(competitions, by = c("competitionId" = "id")) |>
+  filter(best == 347) |>
+  select(personId, year, month, day) |>
+  inner_join(second_ranked, by = "personId") |>
+  mutate(date = paste(month, day, year, sep = "/")) |>
+  arrange(year, month, day) |>
+  slice(1)
+
+second_ranked
+second_best_date
 
 ```
 
-**Write your answer here.**
+**Yusheng Du held the previous world record of 3.47 seconds. This record was broken on November 24th of 2028.**
 
 
 ### Regional Rankings
@@ -96,7 +148,15 @@ This question has two parts:
 1. Amongst all speedcubers, who is the top ranked male speedcuber (for best single solve) in Australia?
 
 ```{r}
-## Add your code here
+# Australia's number 1 ranked male, join rankssingle and persons table, filter by men and country
+australia_male <- rankssingle |>
+  inner_join(persons, by = c("personId" = "id")) |>
+  filter(countryId == "Australia", gender == "m") |>
+  arrange(countryRank) |>
+  slice(2) |>
+  select(personId, name, best, worldRank, countryRank)
+
+australia_male
 
 ```
 
@@ -106,11 +166,19 @@ This question has two parts:
 2. Amongst all speedcubers, who is the top ranked female speedcuber (for best single solve time) in Europe?
 
 ```{r}
-## Add your code here
+europe_female <- rankssingle |>
+  inner_join(persons, by = c("personId" = "id")) |>
+  inner_join(countries, by = c("countryId" = "id")) |>
+  filter(continentId == "_Europe", gender == "f") |>
+  arrange(continentRank) |>
+  slice(1) |>
+  select(personId, name.x, best, worldRank, continentRank)
+
+europe_female
 
 ```
 
-**Write your answer here.**
+**Amongs all speedcubers, Magdalena Pabisz is the top ranked female speedcuber for best single solve time.**
 
 
 
