@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ## Names and EIDs of Group Members
-## Gian Avalos (gfa298), Jay Ayson (), Rushil Randhar ()
+## Gian Avalos (gfa298), Jay Ayson (), Rushil Randhar (rnr825)
 
 ## Load the Data
 
