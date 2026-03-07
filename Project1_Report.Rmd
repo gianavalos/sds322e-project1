@@ -193,11 +193,47 @@ Having a time below 5 seconds is considered an elite achievement and most speedc
 
 
 ```{r}
-## Add your code here
+# Get top 10 speedcubers by single
+top_10 <- rankssingle |>
+  filter(worldRank <= 10) |>
+  select(personId, best, worldRank)
 
+# Get all results for the top 10 with competition dates
+top_10_results <- results |>
+  inner_join(competitions, by = c("competitionId" = "id")) |>
+  filter(personId %in% top_10$personId) |>
+  arrange(personId, year, month, day) |>
+  select(personId, competitionId, year, month, day, value1, value2, value3, value4, value5)
+
+# Pivot so each individual solve is its own row, remove DNF/DNS (coded as <= 0)
+top_10_solves <- top_10_results |>
+  pivot_longer(cols = value1:value5, names_to = "solve_num", values_to = "time") |>
+  filter(time > 0) |>
+  arrange(personId, year, month, day, solve_num) |>
+  group_by(personId) |>
+  mutate(cumulative_solve = row_number()) |>
+  ungroup()
+
+# Find first sub-5 second solve (< 500 centiseconds) for each cuber
+first_sub5 <- top_10_solves |>
+  filter(time < 500) |>
+  group_by(personId) |>
+  slice_min(cumulative_solve, n = 1) |>
+  ungroup() |>
+  select(personId, cumulative_solve, time)
+
+# Join with persons for names
+first_sub5_named <- first_sub5 |>
+  inner_join(persons, by = c("personId" = "id")) |>
+  select(personId, name, cumulative_solve, time)
+
+first_sub5_named
+
+# Average solves before sub-5
+mean(first_sub5$cumulative_solve)
 ```
 
-**Write your answer here.**
+**They had to do an average of 504.1 solves before reaching a sub-5 time.**
 
 
 
@@ -205,12 +241,25 @@ Having a time below 5 seconds is considered an elite achievement and most speedc
 
 
 ```{r}
-## Add your code here
+# Use the world rank 1 holder (Max Park)
+chosen_id <- top_10 |> filter(worldRank == 1) |> pull(personId)
+chosen_name <- persons |> filter(id == chosen_id) |> pull(name) |> first()
 
+cuber_plot_data <- top_10_solves |>
+  filter(personId == chosen_id) |>
+  mutate(date = as.Date(paste(year, month, day, sep = "-")),
+         time_sec = time / 100)
+
+ggplot(cuber_plot_data, aes(x = date, y = time_sec)) +
+  geom_point(alpha = 0.3, color = "steelblue") +
+  geom_smooth(method = "loess", se = FALSE, color = "red") +
+  labs(x = "Date", y = "Solve Time (seconds)",
+       title = paste("Solve Times Over Time for", chosen_name)) +
+  theme_minimal()
 ```
 
 
-**Write your answer here.**
+**The plot shows Max Park's progression over time. The LOESS trend line illustrates an exponential downward trajectory.**
 
 
 ### Up-and-Coming Speed Cubers
@@ -220,13 +269,76 @@ Which speed cubers **not** in the top 10,000 (worldwide for single best time) sh
 The idea here is to identify "up-and-coming" speedcubers who are not yet achieving elite times. Come up with a list of **five** speedcubers (provide their names and WCA IDs) that you have identified as "up-and-coming". There is no one way to answer this question and the goal is to provide an analysis of the data that justifies the selection of your five names.
 
 ```{r}
-## Add your code here
+# Cubers ranked outside top 10,000
+outside_top_10k <- rankssingle |>
+  filter(worldRank > 10000) |>
+  select(personId, worldRank, best)
 
+# Get their results with dates, only recent competitors (at least one comp in 2023-2024)
+candidate_results <- results |>
+  inner_join(competitions, by = c("competitionId" = "id")) |>
+  filter(personId %in% outside_top_10k$personId) |>
+  select(personId, competitionId, year, month, day, value1, value2, value3, value4, value5)
 
+# Only keep cubers who have competed in 2023 or 2024
+recent_competitors <- candidate_results |>
+  filter(year >= 2023) |>
+  distinct(personId)
+
+candidate_results <- candidate_results |>
+  filter(personId %in% recent_competitors$personId)
+
+# Pivot to long form and remove DNF/DNS
+candidate_solves <- candidate_results |>
+  pivot_longer(cols = value1:value5, names_to = "solve_num", values_to = "time") |>
+  filter(time > 0) |>
+  mutate(date = as.Date(paste(year, month, day, sep = "-")))
+
+# Compute each cuber's average time in their earliest year vs their most recent year
+yearly_avg <- candidate_solves |>
+  group_by(personId, year) |>
+  summarize(avg_time = mean(time), n_solves = n(), .groups = "drop")
+
+improvement <- yearly_avg |>
+  group_by(personId) |>
+  filter(n() >= 2) |>  # need at least 2 years of data
+  arrange(year) |>
+  summarize(
+    first_year = first(year),
+    last_year = last(year),
+    first_avg = first(avg_time),
+    last_avg = last(avg_time),
+    n_years = n_distinct(year),
+    improvement_pct = (first(avg_time) - last(avg_time)) / first(avg_time) * 100,
+    .groups = "drop"
+  ) |>
+  filter(last_year >= 2023, n_years >= 2) |>
+  arrange(desc(improvement_pct))
+
+# Join with persons for names, pick top 5
+up_and_coming <- improvement |>
+  slice_head(n = 5) |>
+  inner_join(persons, by = c("personId" = "id")) |>
+  inner_join(outside_top_10k, by = "personId") |>
+  select(personId, name, worldRank, first_year, last_year, 
+         first_avg, last_avg, improvement_pct)
+
+up_and_coming
 ```
 
-**Write your answer here.**
+**To identify up-and-coming cubers, we looked at competitors ranked outside the top 10,000 who have been active in 2023–2024 and have at least two years of competition history. We then computed each cuber's percentage improvement between their first and most recent year's average solve time. The five cubers showing the steepest improvement are:**
 
+**1. Shrijan Pal (2011PALS01) — World Rank 10,965. Improved from a 163.69s average in 2011 to 12.42s in 2024, a 92.4% improvement.**
+
+**2. Vyom Sharma (2019SHAR40) — World Rank 41,819. Improved from a 285.49s average in 2019 to 23.36s in 2023, a 91.8% improvement.**
+
+**3. Andrei Răzvan Ionel (2012IONE01) — World Rank 14,787. Improved from a 165.25s average in 2012 to 14.36s in 2024, a 91.3% improvement.**
+
+**4. Akhil Kota (2013KOTA01) — World Rank 12,661. Improved from a 104.19s average in 2013 to 12.25s in 2023, an 88.2% improvement.**
+
+**5. Elbegbayar Martsaikhan (2019MART33) — World Rank 34,562. Improved from a 121.57s average in 2019 to 16.11s in 2024, an 86.7% improvement.**
+
+**These individuals demonstrate rapid year-over-year progression. Despite currently sitting outside the top 10,000, their improvement trajectories suggest they could climb into elite rankings if their pace of development continues.**
 
 
 ### Region Rivalries
