@@ -351,18 +351,20 @@ To answer this question, characterize each person using their best *average* sco
 
 Before attempting to answer the question, state what you expect the answer to be below.
 
-**Write your expectation here.**
+**We expect Europe to have a faster group of speedcubers based solely on the fact that the Rubicks cube originated in Europe.**
 
 
 
 ```{r}
 ## Add your code here
+region_speed <- ranksaverage |> inner_join(persons, by = c("personId" = "id")) |> inner_join(countries, by = c("countryId" = "id")) |> filter(continentId %in% c("_Europe", "_North America")) |> group_by(continentId) |> summarize(avg_speed = mean(best, na.rm = TRUE)) |> arrange(avg_speed)
 
+region_speed
 ```
 
 What do you conclude about speedcubers in Europe vs. North America?
 
-**Write you answer here.**
+**Speedcubers in Europe have a higher average speed, so they are, on average, slower than those in North America.**
 
 
 ### Alternative Explanations
@@ -375,18 +377,24 @@ Develop an alternative explanation/hypothesis regarding speedcubers from Europe 
 
 If the results from the previous question were unexpected, make use of systems thinking to develop an alternative hypothesis. If the results were consistent with your expectations, then use skeptical thinking. In either case, you should present an analysis that shows evidence for or against this alternative explanation relative to the conclusion that you made in the previous question.
 
-**State your alternative explanation here.**
+**Initially, we believed that Europe would have faster speedcubers because E. Rubik invented the Rubik's cube in Hungary, but the results show that North America had the faster average times. An alternative explanation can be simply that different regions offer differences in competition infrastructure, access to resources, and community sizes which influence speedcuber competition, and thus, times.**
 
 ```{r}
 ## Add your code here
+region_cubers <- ranksaverage |> inner_join(persons, by = c("personId" = "id")) |> inner_join(countries, by = c("countryId" = "id")) |> filter(continentId %in% c("_Europe", "_North America")) |> group_by(continentId) |> summarize(num_cubers = n())
 
+region_cubers
 ```
 
-**Summarize the results of your alternative analysis here.**
+**We compared the amount of cubers in North America and Europe to explore the alternative hypothesis. If a region has more competitors in their region, they are more likely to increase the likelihood of faster times.**
 
 
 
 
 
 ## Discussion
+**Putting it all together, what did you learn from your data? • Reflect on the process of conducting this project. What was challenging, what have you learned from the process itself? • Was there anything unexpected that you found in your analysis? Or was everything essentially as you expected? • Include acknowledgements for any help received • Report the contribution of each member (i.e. who did what).
+
+**From the data, we learned that as the Rubik's Cube gained popularity over time, the average solving times decreased as people developed more efficient solving methods and the culture of speedcubing continued to evolve. The most challenging part of this project was navigating the large number of imported datasets. Additionally, creating data pipelines was sometimes difficult because even small mistakes could prevent the code from generating an output, which made troubleshooting time-consuming. Overall, we did not find anything particularly alarming or unexpected in the results, as most of the data reflected what we initially expected**
+**Group Contribution: Jay: Developed the code and explanations for the final two questions and explored alternative factors to formulate an alternative hypothesis explaining the patterns observed in the visualized data.**
 
